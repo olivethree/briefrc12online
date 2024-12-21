@@ -138,6 +138,18 @@
                 this.container = document.getElementById('mainContainer');
                 this.currentTrialStimuli = null;
 
+                // Get Prolific parameters from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                this.prolific_pid = urlParams.get('PROLIFIC_PID');
+                this.study_id = urlParams.get('STUDY_ID');
+                this.session_id = urlParams.get('SESSION_ID');
+
+                 // Skip experimenter input if Prolific parameters are present
+                if (this.prolific_pid && this.study_id && this.session_id) {
+                    this.phase = 'consent';
+                    this.participantNumber = this.prolific_pid; // Use Prolific ID as participant number
+                }
+
                 this.render();
             }
 
