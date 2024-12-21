@@ -26,6 +26,12 @@ exports.handler = async function(event, context) {
     }
 
     try {
+
+        const store = getStore({
+            siteID: 'a1e21b8c-6b75-4b75-bccb-826a4f1f1a55', 
+            token: 'nfp_8n9zgpVN7M2jhKCeZ5gQeBVKeL6C7nPJ911e' 
+        });
+
         const data = JSON.parse(event.body);
         
         // Validate Prolific data
