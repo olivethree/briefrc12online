@@ -27,10 +27,7 @@ exports.handler = async function(event, context) {
 
     try {
 
-        const store = getStore({
-            siteID: process.env.WEBSITE_ID,
-            token: process.env.MYPERSONALKEY
-        });
+        
 
         const data = JSON.parse(event.body);
         
@@ -47,7 +44,10 @@ exports.handler = async function(event, context) {
         }
 
         // Get store for your experiment
-        const store = getStore("brief-rc-responses");
+        const store = getStore({
+            siteID: process.env.WEBSITE_ID,
+            token: process.env.MYPERSONALKEY
+        });
         
         // Create unique key for this participant's data
         const key = `${data.prolific_pid}_${Date.now()}`;
