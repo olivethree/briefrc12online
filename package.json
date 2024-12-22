@@ -9,8 +9,18 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "description": "",
   "dependencies": {
-    "@netlify/blobs": "^8.1.0"
-  }
+    "@netlify/blobs": "^8.1.0",
+    "faunadb": "^4.8.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olivethree/briefrc12online.git"
+  },
+  "bugs": {
+    "url": "https://github.com/olivethree/briefrc12online/issues"
+  },
+  "homepage": "https://github.com/olivethree/briefrc12online#readme",
+  "devDependencies": {},
+  "description": ""
 }
