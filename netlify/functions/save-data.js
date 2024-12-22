@@ -1,91 +1,80 @@
-const { getStore } = require('@netlify/blobs');
+const faunadb = require('faunadb');
+const q = faunadb.query;
 
-exports.handler = async function(event, context) {
-    // CORS Headers
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
-    };
+const client = new faunadb.Client({ // Initialize client outside the handler
+  secret: process.env.FAUNADB_SERVER_KEY,
+});
 
-    // Handle OPTIONS request for CORS
-    if (event.httpMethod === 'OPTIONS') {
+exports.handler = async (event) => {
+  try {
+    if (!client) {
+      console.error("FaunaDB client not initialized.");
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Server error. Please try again later." }),
+      };
+    }
+
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing request body." }),
+      };
+    }
+
+    const data = JSON.parse(event.body);
+
+    if (!data || !data.type || !data.payload) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid request body. Missing 'type' or 'payload'." }),
+      };
+    }
+
+    if (data.type === 'response') {
+      try {
+        await client.query(q.Create(q.Collection('responses'), { data: data.payload }));
+      } catch (faunaError) {
+        console.error("FaunaDB error creating response:", faunaError);
         return {
-            statusCode: 204,
-            headers
+          statusCode: 500,
+          body: JSON.stringify({ error: "Database error saving response. Please try again later." }),
         };
-    }
+      }
+    } else if (data.type === 'participant') {
+      try {
+        const participantExists = await client.query(
+          q.Exists(q.Match(q.Index('participants_by_participant_number'), data.payload.participant_number))
+        );
 
-    // Only allow POST
-    if (event.httpMethod !== "POST") {
-        return { 
-            statusCode: 405, 
-            headers,
-            body: "Method Not Allowed" 
-        };
-    }
-
-    try {
-
-        
-
-        const data = JSON.parse(event.body);
-        
-        // Validate Prolific data
-        if (!data.prolific_pid || !data.study_id || !data.session_id) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    error: "Missing Prolific parameters",
-                    details: "Required: prolific_pid, study_id, session_id"
-                })
-            };
+        if (!participantExists) {
+          await client.query(q.Create(q.Collection('participants'), { data: data.payload }));
+        } else {
+          console.log("Participant already exists.");
         }
-
-        // Get store for your experiment
-        const store = getStore({
-            siteID: process.env.WEBSITE_ID,
-            token: process.env.MYPERSONALKEY
-        });
-        
-        // Create unique key for this participant's data
-        const key = `${data.prolific_pid}_${Date.now()}`;
-        
-        // Add server timestamp and metadata
-        const dataToStore = {
-            ...data,
-            server_timestamp: new Date().toISOString(),
-            netlify_context: {
-                function_version: context.functionVersion,
-                deploy_id: context.deployId
-            }
-        };
-        
-        // Store the data
-        await store.set(key, dataToStore);
-
-        // Return success
+      } catch (faunaError) {
+        console.error("FaunaDB error creating participant:", faunaError);
         return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-                success: true,
-                message: "Data saved successfully",
-                key: key
-            })
+          statusCode: 500,
+          body: JSON.stringify({ error: "Database error saving participant. Please try again later." }),
         };
-    } catch (error) {
-        console.error('Error saving data:', error);
-        
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-                error: "Error saving data",
-                message: error.message,
-                timestamp: new Date().toISOString()
-            })
-        };
+      }
+    } else {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid data type." }),
+      };
     }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: 'Data submitted successfully' }),
+    };
+  } catch (error) {
+    console.error('General server error:', error); // Catch any unexpected server errors
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "A server error occurred. Please try again later." }),
+    };
+  }
 };
