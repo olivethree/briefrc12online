@@ -44,7 +44,7 @@ exports.handler = async (event) => {
     } else if (data.type === 'participant') {
       try {
         const participantExists = await client.query(
-          q.Exists(q.Match(q.Index('participants_by_participant_number'), data.payload.participant_number))
+          q.Exists(q.Match(q.Index('participants_by_prolific_pid'), data.payload.prolific_pid))
         );
 
         if (!participantExists) {
