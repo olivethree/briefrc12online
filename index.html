@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Classification Task</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;  
+            flex-direction: column;  
+            align-items: center;  
+        }
+
+        .instructions,
+        .consent-form {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            margin: 10px auto; 
+            max-width: fit-content; 
+            justify-content: center; 
+        }
+
+        .stimulus-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .stimulus {
+            width: 150px;
+            height: 150px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        /* Removed .filename class as it's no longer needed */
+
+        .stimulus:hover {
+            border-color: #007bff;
+        }
+
+        .progress {
+            width: 100%;
+            height: 20px;
+            background-color: #eee;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s;
+        }
+
+        .demographics {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .demographics input,
+        .demographics select {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .consent-sections section {
+            margin-bottom: 20px;
+        }
+
+        .consent-sections h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .experimenter-input {
+            max-width: 500px;
+            margin: 50px auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="mainContainer">
+        <!-- Content will be injected here -->
+    </div>
+
+    <script>
+        class BriefRCTask {
+            constructor() {
+                this.currentTrial = 0;
+                this.totalTrials = 60;
+                this.phase = 'experimenter_input';
+                this.responses = [];
+                this.responseId = 'R' + Math.random().toString(36).substr(2, 9);
+                this.participantNumber = null;
+                this.icAgree = null;
+                this.container = document.getElementById('mainContainer');
+                this.currentTrialStimuli = null;
+
+                this.render();
+            }
+
+            
+            showExperimenterInput() {
+                this.container.innerHTML = `
+        <div class="experimenter-input">
+            <h1>Experimenter Setup</h1>
+            <form id="experimenterForm">
+                <div>
+                    <label for="participantNumber">Participant Number:</label>
+                    <input 
+                        type="text" 
+                        id="participantNumber" 
+                        required 
+                        pattern="[0-9]+"
+                        title="Please enter a valid number"
+                    >
+                </div>
+                <button type="submit">Continue to Consent Form</button>
+            </form>
+        </div>
+    `;
+
+                document.getElementById('experimenterForm').onsubmit = (e) => {
+                    e.preventDefault();
+                    this.participantNumber = document.getElementById('participantNumber').value;
+                    this.phase = 'consent';
+                    this.render();
+                };
+            }
+
+            showConsent() {
+                this.container.innerHTML = `
+        <div class="consent-form">
+            <h1>Informed Consent Form</h1>
+            
+            <div class="consent-sections">
+                <section>
+                    <h2>Purpose of the Study</h2>
+                    <p>This research investigates how people perceive and classify faces. The study aims to understand the mental representations people have of different social categories.</p>
+                </section>
+
+                <section>
+                    <h2>Study Procedures</h2>
+                    <p>If you participate, you will:</p>
+                    <ul>
+                        <li>Complete a face classification task (~15 minutes)</li>
+                        <li>Make judgments about face images</li>
+                        <li>Provide basic demographic information</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2>Risks and Benefits</h2>
+                    <p>There are no known risks associated with this research. Your participation will help advance our understanding of face perception.</p>
+                </section>
+
+                <section>
+                    <h2>Confidentiality</h2>
+                    <p>Your responses will be confidential. Data is stored in the machine where this experiment is running, and nowhere else. Collected data do not include identifying information beyond basic demographics (gender, age).</p>
+                </section>
+
+                <section>
+                    <h2>Voluntary Participation</h2>
+                    <p>Participation is voluntary. You can withdraw at any time without penalty.</p>
+                </section>
+
+                <section>
+                    <h2>Contact Information</h2>
+                    <p>For questions about this research, contact: [Researcher Name] at [email@institution.edu]</p>
+                </section>
+
+                <div class="consent-decision">
+                    <p><strong>Have you read and understand this consent form and agree to participate in this study?</strong></p>
+                    <button onclick="task.handleConsent(true)">I Agree</button>
+                    <button onclick="task.handleConsent(false)">I Do Not Agree</button>
+                </div>
+            </div>
+        </div>
+    `;
+            }
+
+            handleConsent(agreed) {
+                this.icAgree = agreed;
+                if (agreed) {
+                    this.phase = 'instructions';
+                } else {
+                    this.phase = 'terminated';
+                    this.exportMinimalData();
+                }
+                this.render();
+            }
+
+            showTermination() {
+                this.container.innerHTML = `
+        <div>
+            <h2>Study Terminated</h2>
+            <p>Thank you for considering participation in this study. The experiment has been terminated as requested.</p>
+            <p>You may now close this window.</p>
+        </div>
+    `;
+            }
+
+            showInstructions() {
+                this.container.innerHTML = `
+                    <div class="instructions">
+                        <h1>Face Classification Task Instructions</h1>
+                        <p>Welcome to the study! In this study we are investigating how people certain traits based on facial appearance. In this task, you will:</p>
+                        <ul>
+                            <li>See 12 faces in each trial</li>
+                            <li>Select the face that looks the most like a "Star Wars Fan"</li>
+                            <li>Complete 60 trials in total</li>
+                            <li>The task will take approximately 10-15 minutes</li>
+                        </ul>
+                        <p><strong>Important Information:</strong></p>
+                        <ul>
+                            <li>There are no right or wrong answers</li>
+                            <li>Trust your intuition when making selections</li>
+                            <li>Try to maintain focus throughout the task</li>
+                        </ul>
+                        <button onclick="task.startTask()">Begin Task</button>
+                    </div>
+                `;
+            }
+
+
+            showDemographics() {
+                this.container.innerHTML = `
+        <div class="demographics">
+            <h2>Demographic Information</h2>
+            <form id="demographicsForm">
+                <div>
+                    <label for="age">Age:</label>
+                    <input type="number" id="age" required min="18" max="100">
+                </div>
+                <div>
+                    <label for="gender">Gender:</label>
+                    <select id="gender" required>
+                        <option value="">Select gender...</option>
+                        <option value="woman">Woman</option>
+                        <option value="man">Man</option>
+                        <option value="non_binary">Non-binary</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                </div>
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+    `;
+
+                document.getElementById('demographicsForm').onsubmit = (e) => {
+                    e.preventDefault();
+                    const demographics = {
+                        age: document.getElementById('age').value,
+                        gender: document.getElementById('gender').value
+                    };
+                    this.handleDemographics(demographics);
+                };
+            }
+
+            showCompletion() {
+                this.container.innerHTML = `
+        <div style="text-align: center;">
+            <h2>Thank You!</h2>
+            <p>Your responses have been recorded and downloaded to your computer (usually the default Downloads folder of your web browser).</p>
+        </div>
+    `;
+            }
+
+            startTask() {
+                this.phase = 'task';
+                this.render();
+            }
+
+            render() {
+                switch (this.phase) {
+                    case 'experimenter_input':
+                        this.showExperimenterInput();
+                        break;
+                    case 'consent':
+                        this.showConsent();
+                        break;
+                    case 'instructions':
+                        this.showInstructions();
+                        break;
+                    case 'task':
+                        this.showTrial();
+                        break;
+                    case 'demographics':
+                        this.showDemographics();
+                        break;
+                    case 'complete':
+                        this.showCompletion();
+                        break;
+                    case 'terminated':
+                        this.showTermination();
+                        break;
+                }
+            }
+
+            exportMinimalData() {
+                // For when participant doesn't consent
+                const minimalData = {
+                    participant_number: this.participantNumber,
+                    response_id: this.responseId,
+                    ic_agree: this.icAgree,
+                    timestamp: new Date().toISOString()
+                };
+
+                const blob = new Blob([JSON.stringify(minimalData)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `brief_rc_minimal_${this.responseId}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            exportData(demographics) {
+                // Add demographics to each response
+                const completeResponses = this.responses.map(response => ({
+                    ...response,
+                    age: demographics.age,
+                    gender: demographics.gender
+                }));
+
+                const headers = Object.keys(completeResponses[0]);
+                const csvContent = [
+                    headers.join(','),
+                    ...completeResponses.map(row => headers.map(header => row[header]).join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `brief_rc_data_${this.responseId}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            generateTrialStimuli() {
+                // First, select 6 random image numbers (for 6 pairs)
+                const pairNumbers = [];
+                while (pairNumbers.length < 6) {
+                    const num = Math.floor(Math.random() * 300) + 1;
+                    if (!pairNumbers.includes(num)) {
+                        pairNumbers.push(num);
+                    }
+                }
+
+                // Create array of 12 stimuli (6 Ori and their 6 corresponding Inv)
+                const stimuliPairs = pairNumbers.flatMap(num => [
+                    {
+                        id: `trial${this.currentTrial}_ori${num}`,
+                        filename: `faceOri${num}s.png`,
+                        oppositeFilename: `faceInv${num}s.png`,
+                        src: `images/faceOri${num}s.png`
+                    },
+                    {
+                        id: `trial${this.currentTrial}_inv${num}`,
+                        filename: `faceInv${num}s.png`,
+                        oppositeFilename: `faceOri${num}s.png`,
+                        src: `images/faceInv${num}s.png`
+                    }
+                ]);
+
+                // Shuffle the array to randomize Ori/Inv positions
+                for (let i = stimuliPairs.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [stimuliPairs[i], stimuliPairs[j]] = [stimuliPairs[j], stimuliPairs[i]];
+                }
+
+                this.currentTrialStimuli = stimuliPairs;
+                return stimuliPairs;
+            }
+
+            showTrial() {
+                const stimuli = this.generateTrialStimuli();
+                const progress = ((this.currentTrial + 1) / this.totalTrials) * 100;
+
+                this.container.innerHTML = `
+                    <div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <p>Trial ${this.currentTrial + 1} of ${this.totalTrials}</p>
+                        <h2>Select the face that looks the most like a Star Wars Fan</h2>
+                        <div class="grid">
+                            ${stimuli.map(stim => `
+                                <div class="stimulus-container">
+                                    <img 
+                                        src="${stim.src}" 
+                                        class="stimulus"
+                                        onclick="task.handleSelection('${stim.filename}', '${stim.oppositeFilename}')"
+                                        alt="Face stimulus"
+                                    />
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            handleSelection(filename, oppositeFilename) {
+                // Extract image number and type from filename
+                const imageNumber = filename.match(/\d+/)[0];
+                const imageType = filename.includes('Ori') ? 1 : -1;
+
+                // Create response object with all trial images
+                const response = {
+                    participant_number: this.participantNumber,
+                    response_id: this.responseId,
+                    ic_agree: this.icAgree,
+                    trial: this.currentTrial + 1,
+                    selected_image: filename,
+                    image_number: imageNumber,
+                    image_type: imageType,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Add all trial images to response
+                this.currentTrialStimuli.forEach((stim, index) => {
+                    response[`image_${index + 1}`] = stim.filename;
+                });
+
+                this.responses.push(response);
+
+                if (this.currentTrial < this.totalTrials - 1) {
+                    this.currentTrial++;
+                    this.render();
+                } else {
+                    this.phase = 'demographics';
+                    this.render();
+                }
+            }
+
+            handleDemographics(demographics) {
+                this.exportData(demographics);
+                this.phase = 'complete';
+                this.render();
+            }
+        }
+        const task = new BriefRCTask();
+    </script>
+</body>
+
+</html>
